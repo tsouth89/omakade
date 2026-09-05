@@ -18,3 +18,17 @@ private account data.
 Omakade can ask Steam to begin installing an owned game. Steam remains
 responsible for installation, updates, moves, and removal. Problems with those
 actions belong to the launcher that owns the game.
+
+## Manual entries and restores
+
+For a manual game, include whether it was added as an executable or desktop
+entry and the error shown. Review paths and arguments before sharing them.
+Windows runner setup belongs to the launcher that owns the game.
+
+For restore failures, include the Omakade version, merge or replace choice,
+and the error shown. Keep the recovery folder while diagnosing the problem.
+Do not attach the archive, database, settings file, or recovery folder to a
+public report; they contain personal library data and may contain private paths
+or account identifiers. The startup recovery screen offers retry or undo before
+the library opens. A completed restore can be reversed by previewing its saved
+recovery archive as a new restore, which also previews changes made since then.

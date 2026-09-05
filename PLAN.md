@@ -846,20 +846,21 @@ Gate:
 
 Couch mode (M6) is the headline 1.6 feature, building on this streaming work.
 
-### After 1.6.0
+### Current roadmap, September 5, 2026
 
-PR #28 merged shared QML role-name definitions across nine game models. This
-unreleased cleanup preserves all role IDs and names and passes all 41 release
-tests against main. It does not change the published 1.6.0 packages.
+Version 1.6.0 shipped on September 5 at `c91b14e`, including Couch Mode,
+direct GOG support, ARM64 packages, dependency scanning, and release SBOMs.
+The earlier milestone sections describe the development history.
 
-Couch Mode, direct GOG support, ARM64 packages, dependency scanning, and release
-SBOMs shipped in 1.6.0. The maintainer approved publication with two validation
-follow-ups still open:
+The active post-1.6 completion scope and acceptance gates are in
+[COMPLETION-PLAN.md](docs/COMPLETION-PLAN.md), with execution evidence in
+[COMPLETION-PROGRESS.md](docs/COMPLETION-PROGRESS.md). Convenience features
+are local candidate work until maintainer testing and publication approval.
+Real launcher reports (#9) and ARM64 hardware evidence (#13) remain open;
+published packages do not establish hardware compatibility.
 
-1. Finish the real-library compatibility matrix in issue 9, prioritizing native
-   and Flatpak launcher variants that are only contract-tested today.
-2. Collect exact-package ARM64 hardware results in issue 13. Both architectures
-   pass automated checks; contributor hardware validation remains outstanding.
+The shared QML role-name cleanup from PR #28 is included in the 1.7 candidate.
+It preserves role IDs and names across the existing nine game models.
 
 ## Explicitly deferred
 

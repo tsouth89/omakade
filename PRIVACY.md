@@ -16,7 +16,9 @@ Omakade retains:
 
 - Library, source records, favorites, hidden state, and achievements in
   `$XDG_DATA_HOME/omakade/library.sqlite3`
-- User-created links between duplicate installations in the same database
+- User-created links and preferred installations in the same database
+- Manual game titles, executable paths, arguments, working directories, and
+  saved filter queries in the same database
 - Completion states, tags, collections, and collection memberships in the same
   database
 - Owned Steam App IDs, titles, and account playtime after an explicit library
@@ -25,7 +27,11 @@ Omakade retains:
   reduced-motion preference in
   `$XDG_CONFIG_HOME/omakade/config.toml`
 - Downloaded covers and achievement icons in `$XDG_CACHE_HOME/omakade/`
-- Copies of covers selected by the user in `$XDG_DATA_HOME/omakade/artwork/`
+- Copies of covers, heroes, and logos selected by the user in
+  `$XDG_DATA_HOME/omakade/artwork/`
+- Configured GOG folders and desktop/Couch Mode preferences in the settings file
+- Private restore jobs and recovery copies in
+  `$XDG_DATA_HOME/omakade/restore-recovery/`
 
 The Steam ID is an account identifier, not a credential. A Steam Web API key
 is stored only through the desktop Secret Service under
@@ -43,6 +49,22 @@ The client secret is stored through Secret Service as
 `io.github.tsouth89.Omakade.IGDB` and is never written to config, the database,
 logs, or process arguments. Omakade sends these credentials to Twitch only to
 obtain an app access token, then sends the token and client ID to IGDB.
+
+## Backup and restore
+
+Export creates a local archive at the path you choose. It includes personal
+library choices, manual launch details, saved filters, custom artwork, and
+supported preferences. It excludes API credentials, Omakade account-service
+identifiers, game files, launcher databases, and downloaded caches. Paths and
+manual arguments can contain personal information; an export is not encrypted.
+Omakade does not upload it.
+
+Restore keeps the incoming archive and a pre-restore recovery archive locally.
+It also keeps an exact copy of the local settings file for interrupted-restore
+recovery, so the private recovery folder can contain local account identifiers
+that portable exports omit. Recovery files have owner-only access. Completed
+recovery jobs are retained; they are not automatically deleted after success.
+Restoring does not reconnect accounts or launch imported entries.
 
 ## Network requests
 
@@ -78,5 +100,5 @@ library database for offline use.
 The settings panel can clear downloaded achievement art and remove Steam,
 RetroAchievements, or IGDB credentials from Secret Service. Removing Omakade does not remove its XDG
 data by default, so users can preserve settings across reinstallations.
-Resetting a custom cover removes Omakade's private copy and restores the
-source-provided artwork. It does not change the original selected image.
+Resetting a custom artwork slot removes its unused Omakade copy and restores
+the source-provided artwork. It does not change the original selected image.

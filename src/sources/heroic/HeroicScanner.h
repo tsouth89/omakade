@@ -30,6 +30,8 @@ struct HeroicScanResult {
   QVector<HeroicGameRecord> games;
   QStringList roots;
   QStringList gogRoots;
+  QStringList unavailableGogRoots;
+  QStringList removedGogRoots;
   QStringList warnings;
   bool incomplete = false;
   bool gogIncomplete = false;
@@ -38,7 +40,7 @@ struct HeroicScanResult {
 
 class HeroicScanner final {
 public:
-  [[nodiscard]] static QStringList discoverRoots();
+  [[nodiscard]] static QStringList discoverRoots(const QStringList& extraGogRoots = {});
   [[nodiscard]] static HeroicScanResult scan(const QStringList& roots);
   [[nodiscard]] static std::optional<GogLaunchTask> gogLaunchTask(const QString& installPath,
                                                                   const QString& appId);

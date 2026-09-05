@@ -32,6 +32,8 @@ Item {
     property bool navigationEnabled: true
     readonly property bool achievementSourceIsRetroArch: selectedInstallation.source === "RetroArch"
     readonly property var achievementAccount: achievementSourceIsRetroArch ? RetroAchievements : SteamAccount
+    property bool randomSelection: false
+    signal randomRequested()
     signal backRequested()
     signal favoriteRequested()
     signal playRequested()
@@ -41,6 +43,8 @@ Item {
     signal coverRequested()
     signal coverResetRequested()
     signal installationSelected(var installation)
+    signal preferredInstallationRequested()
+    signal manualEditRequested()
     signal linkRequested()
     signal unlinkRequested()
     signal completionStatusRequested(string status)
@@ -232,6 +236,14 @@ Item {
                 }
             }
 
+            GlassButton {
+                objectName: "pickAnotherButton"
+                visible: root.randomSelection
+                Layout.fillWidth: true
+                displayScale: root.uiScale
+                text: "PICK ANOTHER"
+                onClicked: root.randomRequested()
+            }
             RowLayout {
                 id: coverActions
                 Layout.fillWidth: true
@@ -240,7 +252,7 @@ Item {
                 GlassButton {
                     Layout.fillWidth: true
                     compact: true
-                    text: "CHANGE COVER"
+                    text: "ARTWORK"
                     onClicked: root.coverRequested()
                 }
                 GlassButton {
@@ -284,8 +296,24 @@ Item {
                 width: detailsScroll.availableWidth
                 spacing: root.couchMode ? 20 * root.uiScale : 16
 
+                Image {
+                    id: gameLogo
+                    objectName: "gameDetailsLogo"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.couchMode ? 110 * root.uiScale : 90
+                    visible: status === Image.Ready
+                    source: root.game.logoPath || ""
+                    sourceSize.width: 1200
+                    sourceSize.height: 360
+                    asynchronous: true
+                    autoTransform: true
+                    cache: false
+                    fillMode: Image.PreserveAspectFit
+                    horizontalAlignment: Image.AlignLeft
+                }
                 Text {
                     Layout.fillWidth: true
+                    visible: gameLogo.status !== Image.Ready
                     text: root.game.title || "Unknown game"
                     textFormat: Text.PlainText
                     color: Theme.brightForeground
@@ -375,9 +403,12 @@ Item {
                             model: root.installations
                             GlassButton {
                                 required property var modelData
+                                required property int index
+                                objectName: "installationChoice_" + index
                                 compact: true
                                 text: (modelData.source || "LOCAL").toUpperCase()
                                       + (modelData.runner ? " · " + modelData.runner.toUpperCase() : "")
+                                      + (modelData.preferred ? " · DEFAULT" : "")
                                 selected: root.selectedInstallation.source === modelData.source
                                           && (root.selectedInstallation.runner || "") === (modelData.runner || "")
                                           && root.selectedInstallation.appId === modelData.appId
@@ -385,6 +416,32 @@ Item {
                             }
                         }
                     }
+                }
+
+                GlassButton {
+                    objectName: "editManualGameButton"
+                    visible: root.selectedInstallation.source === "Manual"
+                    text: "EDIT MANUAL GAME"
+                    compact: true
+                    onClicked: root.manualEditRequested()
+                }
+                GlassButton {
+                    objectName: "preferredInstallationButton"
+                    visible: root.installations.length > 1
+                    compact: true
+                    text: root.selectedInstallation.preferred ? "DEFAULT INSTALLATION" : "MAKE DEFAULT"
+                    enabled: !root.selectedInstallation.preferred
+                    onClicked: root.preferredInstallationRequested()
+                }
+                Text {
+                    objectName: "preferredUnavailableText"
+                    Layout.fillWidth: true
+                    visible: root.selectedInstallation.preferredUnavailable === true
+                    text: "Your default installation is unavailable. Choose another installation or reconnect its drive."
+                    color: Theme.mutedText
+                    font.family: Theme.fontFamily
+                    font.pixelSize: (root.couchMode ? 16 : 11) * root.uiScale
+                    wrapMode: Text.Wrap
                 }
 
                 GridLayout {

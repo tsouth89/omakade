@@ -37,6 +37,8 @@ enum Role {
   Collections,
   LaunchTarget,
   Installed,
+  CustomHero,
+  CustomLogo,
 };
 
 inline QHash<int, QByteArray> names() {

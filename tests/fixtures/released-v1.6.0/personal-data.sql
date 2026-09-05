@@ -1,0 +1,17 @@
+INSERT INTO games(app_id,title,favorite,hidden) VALUES ('42','Released Steam game',1,0),('43','Disconnected Steam game',0,1);
+INSERT INTO installations(app_id,install_dir,library_path,manifest_path,observed_at) VALUES ('42','/offline/Steam/Game','/offline/Steam','/offline/Steam/appmanifest_42.acf',1);
+INSERT INTO lutris_games(id,slug,name,runner,favorite,hidden,observed_at) VALUES ('7','release-lutris','Released Lutris game','wine',1,0,1);
+INSERT INTO heroic_games(game_key,app_id,runner,name,favorite,hidden,observed_at) VALUES ('legendary:epic-release','epic-release','legendary','Released Epic game',0,1,1),('gog-direct:gog-release','gog-release','gog-direct','Released GOG game',1,0,1);
+INSERT INTO faugus_games(game_id,name,runner,favorite,hidden,observed_at) VALUES ('faugus-release','Released Faugus game','wine',1,1,1);
+INSERT INTO retroarch_games(game_id,name,content_path,favorite,hidden,observed_at) VALUES ('retro-release','Released RetroArch game','/offline/retro.rom',1,0,1);
+INSERT INTO pcsx2_games(game_id,name,path,serial,favorite,hidden,observed_at) VALUES ('ps2-release','Released PCSX2 game','/offline/game.iso','TEST-0001',1,0,1);
+INSERT INTO ryujinx_games(game_id,name,flatpak,flatpak_app_id,favorite,hidden,observed_at) VALUES ('switch-release','Released Ryujinx game',1,'org.ryujinx.Ryujinx',1,0,1);
+INSERT INTO battlenet_games(game_id,product_id,name,runner,favorite,hidden,observed_at) VALUES ('bnet-release','WoW','Released Battle.net game','lutris',1,0,1);
+INSERT INTO game_link_members(group_id,source,runner,app_id,is_primary) VALUES ('release-link','Steam','','42',1),('release-link','GOG','gog-direct','gog-release',0);
+INSERT INTO game_organization(source,runner,app_id,completion_status,tags_json) VALUES ('Steam','','42','playing','["Co-op","Weekend"]'),('Steam','','43','backlog','["Offline"]');
+INSERT INTO collections(name,created_at) VALUES ('Weekend',1);
+INSERT INTO collection_games(collection_name,source,runner,app_id) VALUES ('Weekend','Steam','','42'),('Weekend','Steam','','43');
+INSERT INTO launch_activity(source,runner,app_id,last_launched,launch_count) VALUES ('Steam','','42',1788566400,9);
+INSERT INTO source_state(source,last_scan,last_error,paths) VALUES ('Steam',1,'private scanner error','/private/source/root');
+INSERT INTO owned_games(steam_id,app_id,playtime_minutes,synced_at) VALUES ('76561190000000000','42',1234,1);
+INSERT INTO game_insights(source,app_id,provider,provider_game_id,title,updated_at) VALUES ('Steam','42','igdb',42,'Disposable metadata',1);

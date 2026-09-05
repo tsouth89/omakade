@@ -21,6 +21,9 @@ FocusScope {
                                                          Math.min(width / 1920,
                                                                   height / 1080)))
 
+    signal organizeRequested()
+    signal savedFiltersRequested()
+    signal randomRequested()
     signal closed()
     signal filtersChanged()
 
@@ -185,7 +188,36 @@ FocusScope {
             }
 
             GlassButton {
+                id: organizeButton
+                text: "ORGANIZE"
+                displayScale: root.uiScale
+                KeyNavigation.right: savedButton
+                KeyNavigation.down: categoryList
+                onClicked: root.organizeRequested()
+            }
+            GlassButton {
+                id: savedButton
+                KeyNavigation.left: organizeButton
+                objectName: "couchSavedFiltersButton"
+                text: "SAVED FILTERS"
+                displayScale: root.uiScale
+                KeyNavigation.right: randomButton
+                KeyNavigation.down: categoryList
+                onClicked: root.savedFiltersRequested()
+            }
+            GlassButton {
+                id: randomButton
+                KeyNavigation.left: savedButton
+                objectName: "couchRandomGameButton"
+                KeyNavigation.right: clearButton
+                KeyNavigation.down: categoryList
+                text: "PICK A GAME"
+                displayScale: root.uiScale
+                onClicked: root.randomRequested()
+            }
+            GlassButton {
                 id: clearButton
+                KeyNavigation.left: randomButton
                 text: "CLEAR ALL"
                 onClicked: root.clearFilters()
                 KeyNavigation.right: doneButton

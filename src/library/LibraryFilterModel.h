@@ -2,9 +2,15 @@
 
 #include <QSortFilterProxyModel>
 #include <QUrl>
+#include <QSet>
 
 class LibraryFilterModel final : public QSortFilterProxyModel {
   Q_OBJECT
+  Q_PROPERTY(int selectionCount READ selectionCount NOTIFY selectionChanged)
+  Q_PROPERTY(int selectionRevision READ selectionRevision NOTIFY selectionChanged)
+  Q_PROPERTY(QString bulkMessage READ bulkMessage NOTIFY bulkMessageChanged)
+  Q_PROPERTY(QVariantList savedFilters READ savedFilters NOTIFY savedFiltersChanged)
+  Q_PROPERTY(QString savedFilterMessage READ savedFilterMessage NOTIFY savedFilterMessageChanged)
   Q_PROPERTY(QString searchText READ searchText WRITE setSearchText NOTIFY searchTextChanged)
   Q_PROPERTY(Mode mode READ mode WRITE setMode NOTIFY modeChanged)
   Q_PROPERTY(SortMode sortMode READ sortMode WRITE setSortMode NOTIFY sortModeChanged)
@@ -55,12 +61,33 @@ public:
   [[nodiscard]] QStringList tagNames() const;
 
   Q_INVOKABLE QVariantMap get(int row) const;
+  Q_INVOKABLE int pickRandomGame();
+  int selectionCount() const { return m_selectedIdentities.size(); }
+  int selectionRevision() const { return m_selectionRevision; }
+  QString bulkMessage() const { return m_bulkMessage; }
+  Q_INVOKABLE bool isSelected(int row) const;
+  Q_INVOKABLE void toggleSelection(int row);
+  Q_INVOKABLE void selectAllFiltered();
+  Q_INVOKABLE void clearSelection();
+  Q_INVOKABLE bool applyBulkChanges(const QVariantMap& changes);
+  QVariantList savedFilters() const;
+  QString savedFilterMessage() const { return m_savedFilterMessage; }
+  Q_INVOKABLE QString saveCurrentFilter(const QString& name);
+  Q_INVOKABLE bool renameSavedFilter(const QString& id, const QString& name);
+  Q_INVOKABLE bool removeSavedFilter(const QString& id);
+  Q_INVOKABLE bool applySavedFilter(const QString& id);
+  QVariantMap filterState() const;
   Q_INVOKABLE int indexOf(const QString& source, const QString& runner, const QString& appId) const;
   Q_INVOKABLE void toggleFavorite(int row);
   Q_INVOKABLE void toggleHidden(int row);
   Q_INVOKABLE bool setCustomCover(int row, const QUrl& sourceUrl);
   Q_INVOKABLE bool resetCustomCover(int row);
+  Q_INVOKABLE bool setCustomArtwork(int row, const QString& kind, const QUrl& sourceUrl);
+  Q_INVOKABLE bool resetCustomArtwork(int row, const QString& kind);
   Q_INVOKABLE QVariantList installations(int row) const;
+  Q_INVOKABLE QVariantMap preferredInstallation(int row) const;
+  Q_INVOKABLE bool setPreferredInstallation(int row, const QString& source, const QString& runner,
+                                            const QString& appId);
   Q_INVOKABLE QVariantList linkCandidates(int row, const QString& search) const;
   Q_INVOKABLE bool recordLaunch(int row, const QString& source, const QString& runner,
                                 const QString& appId);
@@ -74,6 +101,10 @@ public:
   Q_INVOKABLE bool setCollectionMembership(int row, const QString& name, bool included);
 
 signals:
+  void selectionChanged();
+  void bulkMessageChanged();
+  void savedFiltersChanged();
+  void savedFilterMessageChanged();
   void searchTextChanged();
   void modeChanged();
   void sortModeChanged();
@@ -89,6 +120,15 @@ protected:
   [[nodiscard]] bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
 
 private:
+  void reconcileSelection();
+  QSet<QString> m_selectedIdentities;
+  int m_selectionRevision = 0;
+  QString m_bulkMessage;
+  void setSavedFilterMessage(const QString& value);
+  QString filterWarning(const QVariantMap& state) const;
+  static bool validFilterState(const QVariantMap& state);
+  QString m_savedFilterMessage;
+  QString m_lastRandomIdentity;
   QString m_searchText;
   Mode m_mode = Mode::All;
   SortMode m_sortMode = SortMode::Title;

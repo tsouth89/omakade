@@ -16,7 +16,11 @@ testing only when the maintainer explicitly authorizes that specific release.
    ctest --preset release
    ```
 
-3. Validate the desktop and AppStream files.
+3. Validate the desktop and AppStream files. Inspect dependency scan diagnostics:
+   an unknown-distribution warning is not proof of a clean package. For local
+   x86_64 Arch SBOM scans, use `grype sbom:PACKAGE.spdx.json --distro arch:rolling
+   --only-fixed --fail-on high` and verify a valid vulnerability database. Keep
+   ARM64 distribution coverage and hardware results explicit.
 4. Install into an empty staging directory and inspect every installed file.
    Render visual fixtures without opening a desktop window when needed:
 

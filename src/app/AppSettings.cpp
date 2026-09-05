@@ -1,14 +1,123 @@
 #include "app/AppSettings.h"
+#include "backup/BackupArchive.h"
+#include <QDateTime>
 
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QUrl>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 
+namespace {
+QString normalizedLibraryPath(QString path) {
+  if (path.startsWith(QStringLiteral("file:"))) {
+    const QUrl url(path);
+    if (!url.isLocalFile() || !url.host().isEmpty()) return {};
+    path = url.toLocalFile();
+  }
+  if (path.startsWith(QStringLiteral("~/"))) path = QDir::homePath() + path.mid(1);
+  if (!QDir::isAbsolutePath(path) || path.size() > 4096) return {};
+  for (QChar c : path) {
+    if (c.category() == QChar::Other_Control) return {};
+  }
+  return QDir::cleanPath(path);
+}
+}
+
+QStringList AppSettings::gogLibraryPaths() const { return m_gogLibraryPaths; }
+
+bool AppSettings::addGogLibraryPath(const QString& value) {
+  const QString path = normalizedLibraryPath(value);
+  if (path.isEmpty() || m_gogLibraryPaths.size() >= 64) return false;
+  if (m_gogLibraryPaths.contains(path)) return true;
+  m_gogLibraryPaths.append(path);
+  if (!save()) {
+    m_gogLibraryPaths.removeLast();
+    return false;
+  }
+  emit gogLibraryPathsChanged();
+  return true;
+}
+
+bool AppSettings::removeGogLibraryPath(const QString& path) {
+  const int index = m_gogLibraryPaths.indexOf(path);
+  if (index < 0) return false;
+  m_gogLibraryPaths.removeAt(index);
+  if (!save()) {
+    m_gogLibraryPaths.insert(index, path);
+    return false;
+  }
+  emit gogLibraryPathsChanged();
+  return true;
+}
+
+QString AppSettings::gogLibraryPathStatus(const QString& path) const {
+  const QFileInfo directory(path);
+  if (!directory.exists()) return QStringLiteral("Unavailable. Reconnect the drive to scan this folder.");
+  if (!directory.isDir()) return QStringLiteral("This path is not a folder.");
+  if (!QDir(path).isReadable()) return QStringLiteral("This folder cannot be read. Check its permissions.");
+  return QStringLiteral("Available");
+}
+
 AppSettings::AppSettings(const QString& path, QObject* parent)
     : QObject(parent), m_path(path.isEmpty() ? defaultPath() : path) {
   load();
+}
+
+QJsonObject AppSettings::backupSettings() const {
+  return {{"reduced_motion", m_reducedMotion}, {"artwork_cache_limit_mb", m_artworkCacheLimitMb},
+      {"steam_enabled", m_steamEnabled}, {"lutris_enabled", m_lutrisEnabled},
+      {"heroic_enabled", m_heroicEnabled}, {"gog_enabled", m_gogEnabled},
+      {"faugus_enabled", m_faugusEnabled}, {"retroarch_enabled", m_retroArchEnabled},
+      {"pcsx2_enabled", m_pcsx2Enabled}, {"ryujinx_enabled", m_ryujinxEnabled},
+      {"pcsx2_auto", m_pcsx2Auto}, {"ryujinx_auto", m_ryujinxAuto},
+      {"battlenet_enabled", m_battleNetEnabled}, {"close_after_launch", m_closeAfterLaunch},
+      {"couch_mode", m_couchModeEnabled}, {"couch_library_view", m_couchLibraryView},
+      {"gog_library_paths", QJsonArray::fromStringList(m_gogLibraryPaths)}};
+}
+
+void AppSettings::assignBackupSettings(const QJsonObject& settings) {
+  m_reducedMotion = settings.value("reduced_motion").toBool();
+  m_artworkCacheLimitMb = settings.value("artwork_cache_limit_mb").toInt();
+  m_steamEnabled = settings.value("steam_enabled").toBool();
+  m_lutrisEnabled = settings.value("lutris_enabled").toBool();
+  m_heroicEnabled = settings.value("heroic_enabled").toBool();
+  m_gogEnabled = settings.value("gog_enabled").toBool();
+  m_faugusEnabled = settings.value("faugus_enabled").toBool();
+  m_retroArchEnabled = settings.value("retroarch_enabled").toBool();
+  m_pcsx2Enabled = settings.value("pcsx2_enabled").toBool();
+  m_ryujinxEnabled = settings.value("ryujinx_enabled").toBool();
+  m_pcsx2Auto = settings.value("pcsx2_auto").toBool();
+  m_ryujinxAuto = settings.value("ryujinx_auto").toBool();
+  m_battleNetEnabled = settings.value("battlenet_enabled").toBool();
+  m_closeAfterLaunch = settings.value("close_after_launch").toBool();
+  m_couchModeEnabled = settings.value("couch_mode").toBool();
+  m_couchLibraryView = settings.value("couch_library_view").toString();
+  m_gogLibraryPaths.clear();
+  for (const auto& path : settings.value("gog_library_paths").toArray()) {
+    const QString normalized = normalizedLibraryPath(path.toString());
+    if (!normalized.isEmpty() && !m_gogLibraryPaths.contains(normalized)) m_gogLibraryPaths.append(normalized);
+  }
+}
+
+bool AppSettings::applyBackupSettings(const QJsonObject& settings, bool replace) {
+  BackupPayload check;
+  check.createdAt = QDateTime::currentDateTimeUtc().toString(Qt::ISODate);
+  check.settings = settings;
+  if (!BackupArchive::validate(check)) return false;
+  const auto before = backupSettings();
+  AppSettings defaults(UnloadedSettings{});
+  auto merged = replace ? defaults.backupSettings() : before;
+  for (auto value = settings.begin(); value != settings.end(); ++value) merged.insert(value.key(), value.value());
+  assignBackupSettings(merged);
+  if (!save()) { assignBackupSettings(before); return false; }
+  emit reducedMotionChanged(); emit artworkCacheLimitMbChanged(); emit sourcesChanged();
+  emit closeAfterLaunchChanged(); emit couchModeEnabledChanged(); emit couchLibraryViewChanged();
+  emit gogLibraryPathsChanged();
+  return true;
 }
 
 bool AppSettings::reducedMotion() const { return m_reducedMotion; }
@@ -231,6 +340,17 @@ void AppSettings::load() {
     return;
   }
   const QString contents = QString::fromUtf8(file.readAll());
+  const QRegularExpression pathsExpression(QStringLiteral("(?m)^gog_library_paths[ \t]*=[ \t]*(\\[[^\\r\\n]*\\])[ \t]*$"));
+  const auto pathsMatch = pathsExpression.match(contents);
+  if (pathsMatch.hasMatch()) {
+    const auto paths = QJsonDocument::fromJson(pathsMatch.captured(1).toUtf8()).array();
+    for (const auto& value : paths) {
+      if (!value.isString()) continue;
+      const QString path = normalizedLibraryPath(value.toString());
+      if (!path.isEmpty() && !m_gogLibraryPaths.contains(path) && m_gogLibraryPaths.size() < 64)
+        m_gogLibraryPaths.append(path);
+    }
+  }
   const QRegularExpression motion(QStringLiteral("(?m)^reduced_motion\\s*=\\s*(true|false)\\s*$"));
   const QRegularExpressionMatch motionMatch = motion.match(contents);
   if (motionMatch.hasMatch()) {
@@ -315,11 +435,11 @@ void AppSettings::setSunshineGameApps(bool value) {
   emit sunshineChanged();
 }
 
-void AppSettings::save() const {
+bool AppSettings::save() const {
   QDir().mkpath(QFileInfo(m_path).absolutePath());
   QSaveFile file(m_path);
   if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-    return;
+    return false;
   }
   // Emulator source keys are written only once their state is explicit (detection
   // completed or the user chose a value); while auto-detection is pending the keys
@@ -359,6 +479,9 @@ void AppSettings::save() const {
                   .arg(m_couchLibraryView)
                   .arg(m_sunshineOmakadeApp ? QStringLiteral("true") : QStringLiteral("false"))
                   .arg(m_sunshineGameApps ? QStringLiteral("true") : QStringLiteral("false"));
-  file.write(contents.toUtf8());
-  file.commit();
+  contents += QStringLiteral("gog_library_paths = ") +
+              QString::fromUtf8(QJsonDocument(QJsonArray::fromStringList(m_gogLibraryPaths))
+                                   .toJson(QJsonDocument::Compact)) + QLatin1Char('\n');
+  const QByteArray encoded = contents.toUtf8();
+  return file.write(encoded) == encoded.size() && file.commit();
 }

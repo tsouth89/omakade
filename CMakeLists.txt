@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.24)
 
-project(Omakade VERSION 1.6.0 LANGUAGES CXX)
+project(Omakade VERSION 1.7.0 LANGUAGES CXX)
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(SDL3 REQUIRED IMPORTED_TARGET sdl3)
@@ -17,6 +17,18 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Concurrent Core Gui Network Qml Quick Q
 qt_standard_project_setup(REQUIRES 6.8)
 
 add_library(omakade_core STATIC
+  src/backup/BackupArchive.cpp
+  src/backup/BackupArchive.h
+  src/backup/BackupSnapshot.cpp
+  src/backup/BackupSnapshot.h
+  src/backup/BackupDatabase.cpp
+  src/backup/BackupDatabase.h
+  src/backup/BackupRecovery.cpp
+  src/backup/BackupRecovery.h
+  src/backup/BackupManager.cpp
+  src/backup/BackupManager.h
+  src/backup/BackupStartup.cpp
+  src/backup/BackupStartup.h
   src/achievements/AchievementModel.cpp
   src/achievements/AchievementModel.h
   src/achievements/RetroAchievementsApi.cpp
@@ -54,6 +66,8 @@ add_library(omakade_core STATIC
   src/library/Pcsx2GameModel.h
   src/library/RyujinxGameModel.cpp
   src/library/RyujinxGameModel.h
+  src/library/ManualGameModel.cpp
+  src/library/ManualGameModel.h
   src/library/MockGameModel.cpp
   src/library/MockGameModel.h
   src/library/SteamGameModel.cpp
@@ -128,6 +142,12 @@ qt_add_qml_module(omakade
     qml/components/CouchBrowsePanel.qml
     qml/components/GlassButton.qml
     qml/components/LibraryView.qml
+    qml/screens/ArtworkEditor.qml
+    qml/screens/RestoreStartup.qml
+    qml/screens/BackupEditor.qml
+    qml/screens/SavedFiltersEditor.qml
+    qml/screens/BulkOrganizationEditor.qml
+    qml/screens/ManualGameEditor.qml
     qml/screens/GameDetails.qml
 )
 

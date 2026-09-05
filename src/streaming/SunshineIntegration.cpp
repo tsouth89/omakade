@@ -301,10 +301,12 @@ bool SunshineIntegration::sync() {
       if (game.data(GameRoles::Hidden).toBool() || !game.data(GameRoles::Installed).toBool()) {
         continue;
       }
+      const QVariantMap installation = m_games->preferredInstallation(row);
       games.append({.title = game.data(GameRoles::Title).toString(),
-                    .launchKey = LaunchKey{.source = game.data(GameRoles::Source).toString(),
-                                           .runner = game.data(GameRoles::Runner).toString(),
-                                           .appId = game.data(GameRoles::AppId).toString()}
+                    .launchKey = LaunchKey{
+                        .source = installation.value(QStringLiteral("source")).toString(),
+                        .runner = installation.value(QStringLiteral("runner")).toString(),
+                        .appId = installation.value(QStringLiteral("appId")).toString()}
                                      .toString(),
                     .coverSource = game.data(GameRoles::CoverPath).toString()});
     }

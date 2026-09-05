@@ -1,7 +1,15 @@
 # Changelog
 
-## Unreleased
+## 1.7.0
 
+- Add native games and desktop entries manually, with editable launch arguments.
+- Choose a preferred installation for linked games and add extra GOG folders.
+- Customize covers, hero images, and logos with independent resets.
+- Organize several games at once and save named library filters.
+- Pick a game from the current results, then decide whether to play it.
+- Back up personal library choices, settings, and artwork. Preview and merge or
+  replace a backup, with recovery if restoring is interrupted.
+- Use the new controls in Desktop and Couch Mode, including controller text entry.
 - Share QML role-name definitions across nine game models without changing
   their role IDs, names, or behavior.
 

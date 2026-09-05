@@ -45,6 +45,15 @@ identical role IDs and names, and all 41 release tests pass on the integrated
 code. This is an unreleased maintenance change, not an update to the 1.6.0
 packages. It does not add hardware or real-library compatibility evidence.
 
+## 1.7 candidate validation
+
+The completion candidate passes 81 automated checks covering personal-data
+migration, backup recovery, controller flows, offscreen layouts, and a cached
+large-library fixture. The maintainer confirmed the installed grid fix looks
+good. Physical controller, broader real-launcher, and native ARM64 validation
+remain separate from these checks. See
+[COMPLETION-PROGRESS.md](COMPLETION-PROGRESS.md) for evidence and limitations.
+
 ## Automated visual matrix
 
 Verified offscreen on August 31, 2026:

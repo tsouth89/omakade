@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <utility>
+#include <utility>
 
 namespace {
 QColor colorFor(const QString& key, int offset) {
@@ -51,10 +52,21 @@ HeroicGameModel::HeroicGameModel(const QString& omakadeDatabasePath, QObject* pa
             m_scanning = false;
             applyScan(m_scanWatcher.result());
             emit statusChanged();
+            if (m_refreshPending) {
+              m_refreshPending = false;
+              refresh();
+            }
           });
   if (openDatabase(omakadeDatabasePath) && ensureSchema()) {
     loadDatabase();
     loadSourceState();
+    QSqlQuery roots(m_database);
+    if (roots.exec(QStringLiteral("SELECT path, removed FROM gog_configured_roots"))) {
+      while (roots.next()) {
+        if (roots.value(1).toBool()) m_removedGogRoots.append(roots.value(0).toString());
+        else m_gogLibraryPaths.append(roots.value(0).toString());
+      }
+    }
   }
 }
 
@@ -125,17 +137,51 @@ void HeroicGameModel::toggleHidden(int row) {
   emit dataChanged(index(row), index(row), {GameRoles::Hidden});
 }
 
+void HeroicGameModel::setGogLibraryPaths(const QStringList& paths) {
+  for (const QString& previous : m_gogLibraryPaths) {
+    if (!paths.contains(previous)) m_removedGogRoots.append(previous);
+  }
+  for (const QString& path : paths) m_removedGogRoots.removeAll(path);
+  m_gogLibraryPaths = paths;
+  if (!m_database.isOpen() || !m_database.transaction()) return;
+  QSqlQuery query(m_database);
+  query.prepare(QStringLiteral("INSERT OR REPLACE INTO gog_configured_roots(path, removed) VALUES(?, ?)"));
+  bool okay = true;
+  for (const QString& path : m_removedGogRoots) {
+    query.bindValue(0, path);
+    query.bindValue(1, true);
+    okay = okay && query.exec();
+  }
+  for (const QString& path : paths) {
+    query.bindValue(0, path);
+    query.bindValue(1, false);
+    okay = okay && query.exec();
+  }
+  if (!okay || !m_database.commit()) {
+    m_database.rollback();
+    setStatus(m_statusText, QStringLiteral("Could not save GOG folder scan state"));
+  }
+}
+
 void HeroicGameModel::refresh() {
   if (m_scanWatcher.isRunning()) {
+    m_refreshPending = true;
     return;
   }
   m_scanning = true;
-  const QStringList roots = HeroicScanner::discoverRoots();
+  const QStringList roots = HeroicScanner::discoverRoots(m_gogLibraryPaths);
   setStatus(QStringLiteral("Scanning Heroic and GOG libraries"));
-  m_scanWatcher.setFuture(QtConcurrent::run([roots] { return HeroicScanner::scan(roots); }));
+  const QStringList removed = std::exchange(m_removedGogRoots, {});
+  m_scanWatcher.setFuture(QtConcurrent::run([roots, removed] {
+    auto result = HeroicScanner::scan(roots);
+    result.removedGogRoots = removed;
+    return result;
+  }));
 }
 void HeroicGameModel::refreshFromRoots(const QStringList& roots) {
-  applyScan(HeroicScanner::scan(roots));
+  auto result = HeroicScanner::scan(roots);
+  result.removedGogRoots = std::exchange(m_removedGogRoots, {});
+  applyScan(result);
 }
 
 bool HeroicGameModel::openDatabase(const QString& path) {
@@ -163,6 +209,10 @@ bool HeroicGameModel::ensureSchema() {
   if (!query.exec(QStringLiteral(
           "CREATE TABLE IF NOT EXISTS source_state (source TEXT PRIMARY KEY, last_scan INTEGER, "
           "last_error TEXT, paths TEXT NOT NULL DEFAULT '')"))) {
+    return false;
+  }
+  if (!query.exec(QStringLiteral("CREATE TABLE IF NOT EXISTS gog_configured_roots "
+                                 "(path TEXT PRIMARY KEY, removed INTEGER NOT NULL DEFAULT 0)"))) {
     return false;
   }
   bool hasPaths = false;
@@ -262,7 +312,7 @@ void HeroicGameModel::applyScan(const HeroicScanResult& result) {
       });
   const bool heroicIncomplete = result.incomplete || missingHeroicRoots;
   const bool gogIncomplete = result.gogIncomplete || missingGogRoots;
-  if (heroicIncomplete && gogIncomplete) {
+  if (heroicIncomplete && gogIncomplete && result.removedGogRoots.isEmpty()) {
     setStatus(QStringLiteral("Heroic/GOG scan interrupted; kept cached results"),
               result.warnings.join(QLatin1Char('\n')));
     return;
@@ -281,6 +331,35 @@ void HeroicGameModel::applyScan(const HeroicScanResult& result) {
   if (!gogIncomplete) {
     okay = okay && query.exec(QStringLiteral(
                          "UPDATE heroic_games SET observed_at = 0 WHERE runner = 'gog-direct'"));
+  }
+  if (!gogIncomplete && !result.unavailableGogRoots.isEmpty()) {
+    query.prepare(QStringLiteral("UPDATE heroic_games SET observed_at = ? WHERE game_key = ?"));
+    for (const Game& cached : std::as_const(m_games)) {
+      if (cached.heroic.runner != QStringLiteral("gog-direct")) continue;
+      const QString path = QDir::cleanPath(cached.heroic.installPath);
+      for (const QString& root : result.unavailableGogRoots) {
+        if (path == root || path.startsWith(root + QLatin1Char('/'))) {
+          query.bindValue(0, scanTimestamp);
+          query.bindValue(1, cached.heroic.key);
+          okay = okay && query.exec();
+          break;
+        }
+      }
+    }
+  }
+  if (!result.removedGogRoots.isEmpty()) {
+    query.prepare(QStringLiteral("UPDATE heroic_games SET observed_at = 0 WHERE game_key = ?"));
+    for (const Game& cached : std::as_const(m_games)) {
+      if (cached.heroic.runner != QStringLiteral("gog-direct")) continue;
+      const QString path = QDir::cleanPath(cached.heroic.installPath);
+      for (const QString& root : result.removedGogRoots) {
+        if (path == root || path.startsWith(root + QLatin1Char('/'))) {
+          query.bindValue(0, cached.heroic.key);
+          okay = okay && query.exec();
+          break;
+        }
+      }
+    }
   }
   QSet<QString> cachedManagedGogPaths;
   if (result.managedGogIncomplete) {
@@ -328,6 +407,11 @@ void HeroicGameModel::applyScan(const HeroicScanResult& result) {
   query.addBindValue(result.roots.isEmpty() ? QStringLiteral("")
                                             : result.roots.join(QLatin1Char('\n')));
   okay = okay && query.exec();
+  query.prepare(QStringLiteral("DELETE FROM gog_configured_roots WHERE path = ? AND removed = 1"));
+  for (const QString& root : result.removedGogRoots) {
+    query.bindValue(0, root);
+    okay = okay && query.exec();
+  }
   if (!okay || !m_database.commit()) {
     m_database.rollback();
     setStatus(QStringLiteral("Could not update Heroic games"), query.lastError().text());
@@ -336,7 +420,7 @@ void HeroicGameModel::applyScan(const HeroicScanResult& result) {
   loadDatabase();
   m_detectedPaths = result.roots;
   m_lastScan = scanTimestamp;
-  setStatus(heroicIncomplete || gogIncomplete
+  setStatus(heroicIncomplete || gogIncomplete || !result.unavailableGogRoots.isEmpty()
                 ? QStringLiteral("Imported available Heroic/GOG games; kept cached results for "
                                  "the interrupted source")
             : !result.roots.isEmpty()

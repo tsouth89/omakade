@@ -36,6 +36,7 @@ public:
   Q_INVOKABLE void refresh();
   [[nodiscard]] bool scanning() const { return m_scanning; }
   void refreshFromRoots(const QStringList& roots);
+  void setGogLibraryPaths(const QStringList& paths);
 
 signals:
   void statusChanged();
@@ -62,6 +63,9 @@ private:
   QString m_connectionName;
   QFutureWatcher<HeroicScanResult> m_scanWatcher;
   bool m_scanning = false;
+  bool m_refreshPending = false;
+  QStringList m_gogLibraryPaths;
+  QStringList m_removedGogRoots;
   bool m_heroicDetected = false;
   bool m_gogDetected = false;
   QString m_statusText;

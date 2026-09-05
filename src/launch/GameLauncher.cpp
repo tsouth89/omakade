@@ -1,4 +1,5 @@
 #include "launch/GameLauncher.h"
+#include "library/ManualGameModel.h"
 
 #include "launch/SteamLauncher.h"
 #include "sources/FlatpakInstall.h"
@@ -295,6 +296,20 @@ LaunchCommand GameLauncher::gogCommand(const QString& id, const QString& install
 bool GameLauncher::launch(const QString& source, const QString& id, bool flatpak,
                           const QString& runner, const QString& installPath,
                           const QString& launchTarget) {
+  if (source.compare(QStringLiteral("Manual"), Qt::CaseInsensitive) == 0) {
+    QString program, directory, error;
+    QStringList arguments;
+    if (!ManualGameModel::validateLaunch(launchTarget, id, &program, &arguments, &directory, &error)) {
+      setError(error);
+      return false;
+    }
+    if (!QProcess::startDetached(program, arguments, directory)) {
+      setError(QStringLiteral("Could not start this native game. Check its executable and permissions."));
+      return false;
+    }
+    setError({});
+    return true;
+  }
   if (source.compare(QStringLiteral("Faugus"), Qt::CaseInsensitive) != 0 &&
       !installPath.isEmpty() && !installedTargetExists(installPath)) {
     setError(QStringLiteral(

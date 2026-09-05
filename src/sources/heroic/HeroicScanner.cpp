@@ -412,7 +412,7 @@ bool scanLooseGog(const QString& root, HeroicScanResult* result, QSet<QString>* 
 }
 } // namespace
 
-QStringList HeroicScanner::discoverRoots() {
+QStringList HeroicScanner::discoverRoots(const QStringList& extraGogRoots) {
   const QString config = QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation);
   const QString home = QDir::homePath();
   QStringList candidates = {
@@ -420,17 +420,19 @@ QStringList HeroicScanner::discoverRoots() {
       home + QStringLiteral("/.var/app/com.heroicgameslauncher.hgl/config/heroic"),
       home + QStringLiteral("/GOG Games"), home + QStringLiteral("/Games/GOG"),
       home + QStringLiteral("/Games/Heroic"), home + QStringLiteral("/Games")};
-  const QString configured = qEnvironmentVariable("OMAKADE_GOG_LIBRARY_PATHS");
-  for (const QString& path : configured.split(QDir::listSeparator(), Qt::SkipEmptyParts)) {
-    candidates.append(QDir::cleanPath(path));
-  }
-  candidates.removeDuplicates();
   QStringList roots;
   for (const QString& root : candidates) {
-    if (QFileInfo(root).isDir()) {
-      roots.append(root);
-    }
+    if (QFileInfo(root).isDir()) roots.append(root);
   }
+  // Explicit paths remain in the scan when a drive is absent, so it can be reported
+  // and its cached games retained. Environment paths add to saved and standard roots.
+  QStringList configured = extraGogRoots;
+  configured.append(qEnvironmentVariable("OMAKADE_GOG_LIBRARY_PATHS")
+                        .split(QDir::listSeparator(), Qt::SkipEmptyParts));
+  for (const QString& path : configured) {
+    if (QDir::isAbsolutePath(path)) roots.append(QDir::cleanPath(path));
+  }
+  roots.removeDuplicates();
   return roots;
 }
 
@@ -439,9 +441,12 @@ HeroicScanResult HeroicScanner::scan(const QStringList& roots) {
   QSet<QString> keys;
   QStringList validRoots;
   for (const QString& root : roots) {
-    if (!QFileInfo(root).isDir()) {
+    if (!QFileInfo(root).isDir() || !QDir(root).isReadable()) {
+      result.unavailableGogRoots.append(QDir::cleanPath(root));
+      result.warnings.append(QStringLiteral("GOG folder unavailable: %1").arg(root));
       continue;
     }
+    if (validRoots.contains(root)) continue;
     validRoots.append(root);
     const bool flatpak = root.contains(QStringLiteral("/.var/app/com.heroicgameslauncher.hgl/"));
     const int before = result.games.size();

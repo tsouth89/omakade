@@ -25,7 +25,8 @@ FocusScope {
         { label: "FAUGUS", value: "Faugus", enabled: Preferences.faugusEnabled },
         { label: "RETROARCH", value: "RetroArch", enabled: Preferences.retroArchEnabled },
         { label: "PCSX2", value: "PCSX2", enabled: Preferences.pcsx2Enabled },
-        { label: "RYUJINX", value: "Ryujinx", enabled: Preferences.ryujinxEnabled }
+        { label: "RYUJINX", value: "Ryujinx", enabled: Preferences.ryujinxEnabled },
+        { label: "MANUAL", value: "Manual", enabled: true }
     ].filter(function(option) { return option.enabled === undefined || option.enabled })
     readonly property bool detailView: (viewOverride.length > 0
                                         ? viewOverride : Preferences.couchLibraryView) !== "grid"
@@ -36,6 +37,9 @@ FocusScope {
 
     signal gameActivated(int index)
     signal favoriteToggled(int index)
+    signal organizeRequested()
+    signal savedFiltersRequested()
+    signal randomRequested()
     signal settingsRequested()
     signal desktopRequested()
     signal coverRequested(string source, string appId)
@@ -838,9 +842,9 @@ FocusScope {
         anchors.bottomMargin: 24 * root.uiScale
         anchors.leftMargin: 58 * root.uiScale
         anchors.rightMargin: 58 * root.uiScale
-        cellWidth: 212 * root.uiScale
+        cellWidth: width / columnCount
         cellHeight: 350 * root.uiScale
-        readonly property int columnCount: Math.max(1, Math.floor(width / cellWidth))
+        readonly property int columnCount: Math.max(1, Math.floor(width / (212 * root.uiScale)))
         model: null
         currentIndex: root.currentIndex
         keyNavigationEnabled: true
@@ -895,6 +899,7 @@ FocusScope {
 
             width: 196 * root.uiScale
             height: 330 * root.uiScale
+            transform: Translate { x: (gameGrid.cellWidth - gridCard.width) / 2 }
             transformOrigin: Item.TopLeft
             scale: current ? 1.025 : 1
             z: current ? 2 : 1
@@ -1151,6 +1156,9 @@ FocusScope {
             root.currentIndex = root.libraryModel.rowCount() > 0 ? 0 : -1
             root.refreshCurrentGame()
         }
+        onOrganizeRequested: { root.closeBrowse(); root.organizeRequested() }
+        onSavedFiltersRequested: { root.closeBrowse(); root.savedFiltersRequested() }
+        onRandomRequested: { root.closeBrowse(); root.randomRequested() }
         onClosed: root.closeBrowse()
     }
 
