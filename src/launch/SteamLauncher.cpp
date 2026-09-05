@@ -1,7 +1,11 @@
 #include "launch/SteamLauncher.h"
 
 #include <QDesktopServices>
+#include <QProcess>
 #include <QRegularExpression>
+#include <QStandardPaths>
+
+#include "sources/FlatpakInstall.h"
 
 namespace {
 bool validAppId(const QString& appId) {
@@ -45,6 +49,39 @@ QUrl SteamLauncher::installUrl(const QString& appId) {
   return validAppId(appId) ? QUrl(QStringLiteral("steam://install/%1").arg(appId)) : QUrl{};
 }
 
+QList<LaunchCommand> SteamLauncher::steamCommands(const QUrl& url, const QString& steamExecutable,
+                                                  bool flatpakSteamInstalled) {
+  if (!url.isValid() || url.isEmpty() || url.scheme() != QStringLiteral("steam")) {
+    return {};
+  }
+  const QString target = url.toString(QUrl::FullyEncoded);
+  QList<LaunchCommand> commands;
+  if (!steamExecutable.isEmpty()) {
+    commands.append(LaunchCommand{steamExecutable, {target}});
+  }
+  if (flatpakSteamInstalled) {
+    commands.append(
+        LaunchCommand{QStringLiteral("flatpak"),
+                      {QStringLiteral("run"), QStringLiteral("com.valvesoftware.Steam"), target}});
+  }
+  return commands;
+}
+
+bool SteamLauncher::openUrl(const QUrl& url) {
+  if (!url.isValid() || url.isEmpty()) {
+    return false;
+  }
+  const QList<LaunchCommand> commands =
+      steamCommands(url, QStandardPaths::findExecutable(QStringLiteral("steam")),
+                    flatpakAppInstalled(QStringLiteral("com.valvesoftware.Steam")));
+  for (const LaunchCommand& command : commands) {
+    if (QProcess::startDetached(command.program, command.arguments)) {
+      return true;
+    }
+  }
+  return QDesktopServices::openUrl(url);
+}
+
 bool SteamLauncher::launch(const QString& appId) { return open(launchUrl(appId)); }
 
 bool SteamLauncher::manage(const QString& appId) { return open(manageUrl(appId)); }
@@ -55,7 +92,7 @@ bool SteamLauncher::open(const QUrl& url) {
   QString error;
   if (!url.isValid() || url.isEmpty()) {
     error = QStringLiteral("This game has an invalid Steam App ID.");
-  } else if (!QDesktopServices::openUrl(url)) {
+  } else if (!openUrl(url)) {
     error = QStringLiteral("Steam could not open the game. Check that Steam is installed.");
   }
   if (m_lastError != error) {

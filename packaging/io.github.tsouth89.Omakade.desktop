@@ -6,6 +6,6 @@ Exec=omakade
 Icon=io.github.tsouth89.Omakade
 Terminal=false
 Categories=Game;
-Keywords=Games;Launcher;Steam;RetroArch;Library;
+Keywords=Games;Launcher;Library;
 StartupNotify=true
 StartupWMClass=io.github.tsouth89.Omakade

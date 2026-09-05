@@ -1,13 +1,9 @@
 #pragma once
 
+#include "launch/LaunchCommand.h"
+
 #include <QObject>
 #include <QStringList>
-
-struct LaunchCommand {
-  QString program;
-  QStringList arguments;
-  [[nodiscard]] bool isValid() const { return !program.isEmpty(); }
-};
 
 class GameLauncher final : public QObject {
   Q_OBJECT

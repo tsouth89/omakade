@@ -308,7 +308,7 @@ bool GameLauncher::launch(const QString& source, const QString& id, bool flatpak
       setError(QStringLiteral("This game has an invalid Steam App ID."));
       return false;
     }
-    if (!QDesktopServices::openUrl(url)) {
+    if (!SteamLauncher::openUrl(url)) {
       setError(QStringLiteral("Steam could not open the game. Check that Steam is installed."));
       return false;
     }
@@ -351,7 +351,7 @@ bool GameLauncher::manage(const QString& source, const QString& id, bool flatpak
                           const QString& runner, const QString& launchTarget) {
   if (source.compare(QStringLiteral("Steam"), Qt::CaseInsensitive) == 0) {
     const QUrl url = SteamLauncher::manageUrl(id);
-    if (!url.isValid() || url.isEmpty() || !QDesktopServices::openUrl(url)) {
+    if (!url.isValid() || url.isEmpty() || !SteamLauncher::openUrl(url)) {
       setError(QStringLiteral("Steam could not open the game details."));
       return false;
     }
@@ -396,7 +396,7 @@ bool GameLauncher::install(const QString& source, const QString& id) {
     setError(QStringLiteral("This game has an invalid Steam App ID."));
     return false;
   }
-  if (!QDesktopServices::openUrl(url)) {
+  if (!SteamLauncher::openUrl(url)) {
     setError(QStringLiteral("Steam could not start the installation."));
     return false;
   }
